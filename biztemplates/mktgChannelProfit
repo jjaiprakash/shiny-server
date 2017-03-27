@@ -1,0 +1,156 @@
+---
+title: "Marketing Alternative Channel Profitability"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme: united
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+
+suppressPackageStartupMessages({
+  if (!require(shiny)){
+    install.packages("shiny", repos="http://cran.rstudio.com/")
+    require(shiny)
+  }
+  if (!require(dplyr)){
+    install.packages("dplyr", repos="http://cran.rstudio.com/")
+    require(dplyr)
+  }
+  if (!require(tidyr)){
+    install.packages("tidyr", repos="http://cran.rstudio.com/")
+    require(tidyr)
+  }
+  if (!require(lubridate)){
+    install.packages("lubridate", repos="http://cran.rstudio.com/")
+    require(lubridate)
+  }
+  if (!require(DT)){
+    install.packages("DT", repos="http://cran.rstudio.com/")
+    require(DT)
+  }
+  if (!require(ggplot2)){
+    install.packages("ggplot2", repos="http://cran.rstudio.com/")
+    require(ggplot2)
+  }
+  if (!require(dygraphs)){
+    install.packages("dygraphs", repos="http://cran.rstudio.com/")
+    require(dygraphs)
+  }
+  if (!require(flexdashboard)){
+    install.packages("flexdashboard", repos="http://cran.rstudio.com/")
+    require(flexdashboard)
+  }
+  if (!require(extrafontdb)){
+    install.packages("extrafontdb", repos="http://cran.rstudio.com/")
+    require(extrafontdb)
+  }
+  if (!require(htmlwidgets)){
+    install.packages("htmlwidgets", repos="http://cran.rstudio.com/")
+    require(htmlwidgets)
+  }
+  if (!require(data.table)){
+    install.packages("data.table", repos="http://cran.rstudio.com/")
+    require(data.table)
+  }
+})
+
+```
+
+# Select {.sidebar}
+
+```{r echo=FALSE}
+
+sliderInput(inputId = "mktDem", label = "Market Demand", 0, 10000, 1000)
+sliderInput(inputId = "mktShrPct", label = "Market Share %", 0, 100, 20)
+sliderInput(inputId = "endUsrPr", label = "End User Price", 500, 2000, 1000)
+sliderInput(inputId = "unitCost", label = "Unit Cost", 1, 1000, 650)
+sliderInput(inputId = "retDiscPct", label = "Retailer Discount %", 0, 100, 20)
+sliderInput(inputId = "DistDiscPct", label = "Distributor Discount %", 0, 100, 0)
+sliderInput(inputId = "salesAgentCommPct", label = "Sales Agent Commission %", 0, 100, 0)
+sliderInput(inputId = "trCostPct", label = "Transaction Cost %", 0, 100, 2)
+sliderInput(inputId = "CoSalesCommPct", label = "Company Sales Commission %", 0, 100, 0)
+sliderInput(inputId = "mktgSalesExpPct", label = "Marketing Sales Expense %", 0, 100, 5)
+## p(class = 'text-center', actionButton("goButton", "Submit"))
+
+
+```
+
+
+```{r}
+result <- function(mD, mS, Pr, uC, rD, dD, sC, tC, cC, mSE) {
+  v <- mS/(100) * mD
+  wp <- (1-rD/100.0) * Pr
+  np <- (1 - (dD + sC)/100.0) * wp
+  pp <- (1 - (tC + cC)/100.0) * np
+  sr <- pp * v
+  cogs <- uC * v
+  gm <- sr - cogs
+  gmp <- gm / sr * 100
+  mexp <- mSE / 100.0 * sr
+  nmc <- gm - mexp
+  mros <- nmc / sr * 100
+  mroi <- nmc / mexp * 100
+  bev <- mexp /(pp - uC)
+  bes <- bev /mD * 100
+  
+  r <- list(Market_Demand = mD, 
+            Market_Share = mS, 
+            Volume = v, 
+            End_User_Price = Pr, 
+            Wholesale_Price = wp, 
+            Net_Price = np,
+            Sales_Revenue = sr, 
+            COGS = cogs, 
+            Gross_Margin = gm, 
+            Margin_Percent = gmp, 
+            Marketing_Exp = mexp, 
+            Net_Marketing_Cont = nmc, 
+            Marketing_ROS = mros, 
+            Marketing_ROI = mroi, 
+            Breakeven_Volume = bev, 
+            Breakeven_Share = bes)
+      
+  return(r)
+
+}
+
+```
+
+#Output
+```{r}
+r <- reactive({result(input$mktDem, input$mktShrPct, input$endUsrPr, 
+                      input$unitCost, input$retDiscPct, input$DistDiscPct, 
+                      input$salesAgentCommPct, input$trCostPct, 
+                      input$CoSalesCommPct, input$mktgSalesExpPct)})
+```
+
+
+Column 
+-----------------------------------------------------------------------
+### Result in Numbers
+```{r}
+output$table <- renderTable({
+##  t <-  data.frame(Metric = rep(names(r()), sapply(r(), length)), Scenario1 = unlist(r()))
+  t <-  data.frame(Scenario1 = unlist(r()))
+ ## df <- data.frame(matrix(unlist(l), nrow=132, byrow=T))
+  }
+  ,digits = 2
+)
+tableOutput("table")
+```
+
+
+### Result in Words
+
+<h3>Scenario 1</h3>
+Based on the chosen scenario parameters, the breakeven volume to recoup the marketing expense of `r renderText({ r()[["Marketing_Exp"]]}) `  is `r renderText({ r()[["Breakeven_Volume"]]}) ` units which translates to a market share requirement of 
+`r renderText({ r()[["Breakeven_Share"]]}) ` percent, based on a total market demand of `r renderText({ r()[["Market_Demand"]]}) ` units.
+
+
+```{r}
+## textOutput("vol") 
+```
+
